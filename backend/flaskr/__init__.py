@@ -1,7 +1,7 @@
 import os
 from flask import Flask, request, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 import random
 
 from models import setup_db, Question, Category
@@ -16,10 +16,20 @@ def create_app(test_config=None):
     """
     @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
     """
+    cors = CORS(app, resources={r"/": {"origins": "*"}})
 
     """
     @TODO: Use the after_request decorator to set Access-Control-Allow
     """
+
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PATCH,POST,DELETE,OPTIONS')
+        # response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Allow-Control-Allow-Credentials', 'true')
+
+        return response
 
     """
     @TODO:
@@ -27,6 +37,10 @@ def create_app(test_config=None):
     for all available categories.
     """
 
+    @app.route('/messages')
+    @cross_origin()
+    def get_messages():
+        return 'GETTING MESSAGES'
 
     """
     @TODO:
@@ -40,6 +54,38 @@ def create_app(test_config=None):
     ten questions per page and pagination at the bottom of the screen for three pages.
     Clicking on the page numbers should update the questions.
     """
+
+    @app.route('/questions', methods=['GET'])
+    @cross_origin()
+    def get_questions_per_page():
+        page = request.args.get('page', 1, int)
+        limit = page * QUESTIONS_PER_PAGE
+        offset = (page - 1) * QUESTIONS_PER_PAGE
+
+        question_list = Question.query.limit(limit).offset(offset).all()
+        total_count = Question.query.count()
+
+        categories_list = Category.query.all()
+
+        question_list = [ques.format() for ques in question_list]
+        categories_dict = {}
+        for item in categories_list:
+            categories_dict.update({
+                item.id: item.type
+            })
+
+        current_category = ''
+        if len(question_list) > 0:
+            categories = Category.query.filter(Category.id == question_list[0]['category']).first()
+            if categories:
+                current_category = categories.type
+
+        return jsonify({
+            'total_questions': total_count,
+            'questions': question_list,
+            'categories': categories_dict,
+            'current_category': current_category,
+        })
 
     """
     @TODO:
@@ -71,6 +117,28 @@ def create_app(test_config=None):
     Try using the word "title" to start.
     """
 
+    @app.route('/questions', methods=['POST'])
+    @cross_origin()
+    def search_questions():
+        searchTerm = request.json.get('searchTerm', '')
+
+        question_list = Question.query.filter(Question.question.ilike(f'%{searchTerm}%')).all()
+        total_count = Question.query.filter(Question.question.ilike(f'%{searchTerm}%')).count()
+
+        current_category = ''
+        question_list = [ques.format() for ques in question_list]
+
+        if len(question_list) > 0:
+            categories = Category.query.filter(Category.id == question_list[0]['category']).first()
+            if categories:
+                current_category = categories.type
+
+        return jsonify({
+            'total_questions': total_count,
+            'questions': question_list,
+            'current_category': current_category,
+        })
+
     """
     @TODO:
     Create a GET endpoint to get questions based on category.
@@ -79,6 +147,26 @@ def create_app(test_config=None):
     categories in the left column will cause only questions of that
     category to be shown.
     """
+
+    @app.route('/categories/<int:category_id>/questions')
+    @cross_origin()
+    def get_questions_by_category(category_id):
+
+        question_list = Question.query.filter(Question.category == category_id).all()
+        total_count = Question.query.filter(Question.category == category_id).count()
+
+        category = Category.query.filter(Category.id == category_id).first()
+
+        question_list = [ques.format() for ques in question_list]
+        current_category = ''
+        if category:
+            current_category = category.type
+
+        return jsonify({
+            'total_questions': total_count,
+            'questions': question_list,
+            'current_category': current_category,
+        })
 
     """
     @TODO:
