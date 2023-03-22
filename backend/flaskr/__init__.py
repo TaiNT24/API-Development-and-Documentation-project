@@ -26,8 +26,6 @@ def create_app(test_config=None):
     def after_request(response):
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PATCH,POST,DELETE,OPTIONS')
-        # response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Allow-Control-Allow-Credentials', 'true')
 
         return response
 
@@ -37,10 +35,20 @@ def create_app(test_config=None):
     for all available categories.
     """
 
-    @app.route('/messages')
+    @app.route('/categories', methods=['GET'])
     @cross_origin()
-    def get_messages():
-        return 'GETTING MESSAGES'
+    def get_categories():
+        categories_list = Category.query.all()
+
+        categories_dict = {}
+        for item in categories_list:
+            categories_dict.update({
+                item.id: item.type
+            })
+
+        return jsonify({
+            'categories': categories_dict,
+        })
 
     """
     @TODO:
@@ -95,6 +103,21 @@ def create_app(test_config=None):
     This removal will persist in the database and when you refresh the page.
     """
 
+    @app.route('/questions/<int:question_id>', methods=['DELETE'])
+    @cross_origin()
+    def delete_questions(question_id):
+
+        deleted_question = Question.query.filter(Question.id == question_id).first()
+        if deleted_question:
+            deleted_question.delete()
+        else:
+            abort(404)
+
+        return jsonify({
+            "success": True,
+            'message': 'Success'
+        })
+
     """
     @TODO:
     Create an endpoint to POST a new question,
@@ -105,6 +128,26 @@ def create_app(test_config=None):
     the form will clear and the question will appear at the end of the last page
     of the questions list in the "List" tab.
     """
+
+    @app.route('/questions', methods=['POST'])
+    @cross_origin()
+    def post_new_questions():
+        question = request.json.get('question', '')
+        answer = request.json.get('answer', '')
+        category = request.json.get('category', 0)
+        difficulty = request.json.get('difficulty', 0)
+
+        if not question or not answer or category == 0 or difficulty == 0:
+            abort(422)
+
+        new_question = Question(question, answer, category, difficulty)
+
+        new_question.insert()
+
+        return jsonify({
+            "success": True,
+            'message': 'Success',
+        })
 
     """
     @TODO:
@@ -117,12 +160,12 @@ def create_app(test_config=None):
     Try using the word "title" to start.
     """
 
-    @app.route('/questions', methods=['POST'])
+    @app.route('/questions/search', methods=['POST'])
     @cross_origin()
     def search_questions():
-        searchTerm = request.json.get('searchTerm', '')
+        searchTerm = request.json.get('searchTerm', '').strip()
 
-        question_list = Question.query.filter(Question.question.ilike(f'%{searchTerm}%')).all()
+        question_list = Question.query.filter(Question.question.ilike(f'%{searchTerm}%')).limit(QUESTIONS_PER_PAGE).offset(0).all()
         total_count = Question.query.filter(Question.question.ilike(f'%{searchTerm}%')).count()
 
         current_category = ''
@@ -180,11 +223,47 @@ def create_app(test_config=None):
     and shown whether they were correct or not.
     """
 
+    @app.route('/quizzes', methods=['POST'])
+    @cross_origin()
+    def get_quizzes():
+        previous_questions = request.json.get('previous_questions', [])
+        quiz_category = request.json.get('quiz_category', {})
+
+        filter_condition = []
+        if len(previous_questions) > 0:
+            filter_condition.append(Question.id.notin_(previous_questions))
+        if quiz_category.__len__() > 0:
+            cate_id = quiz_category.get("id", 0)
+            if cate_id != 0:
+                filter_condition.append(Question.category == cate_id)
+
+        first_quest = Question.query.filter(*filter_condition).first()
+
+        return jsonify({
+            'question': first_quest.format() if first_quest is not None else None,
+        })
+
     """
     @TODO:
     Create error handlers for all expected errors
     including 404 and 422.
     """
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({
+            "success": False,
+            "error": 404,
+            "message": "Not found"
+        }), 404
+
+    @app.errorhandler(422)
+    def unprocessable(error):
+        return jsonify({
+            "success": False,
+            "error": 422,
+            "message": "Unprocessable"
+        }), 422
 
     return app
 
