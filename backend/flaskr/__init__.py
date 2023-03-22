@@ -132,6 +132,10 @@ def create_app(test_config=None):
     @app.route('/questions', methods=['POST'])
     @cross_origin()
     def post_new_questions():
+        if 'question' not in request.json or 'answer' not in request.json \
+                or 'category' not in request.json or 'difficulty' not in request.json:
+            abort(400)
+
         question = request.json.get('question', '')
         answer = request.json.get('answer', '')
         category = request.json.get('category', 0)
@@ -163,6 +167,9 @@ def create_app(test_config=None):
     @app.route('/questions/search', methods=['POST'])
     @cross_origin()
     def search_questions():
+        if 'searchTerm' not in request.json:
+            abort(400)
+
         searchTerm = request.json.get('searchTerm', '').strip()
 
         question_list = Question.query.filter(Question.question.ilike(f'%{searchTerm}%')).limit(QUESTIONS_PER_PAGE).offset(0).all()
@@ -226,6 +233,9 @@ def create_app(test_config=None):
     @app.route('/quizzes', methods=['POST'])
     @cross_origin()
     def get_quizzes():
+        if 'previous_questions' not in request.json or 'quiz_category' not in request.json:
+            abort(400)
+
         previous_questions = request.json.get('previous_questions', [])
         quiz_category = request.json.get('quiz_category', {})
 
@@ -248,6 +258,22 @@ def create_app(test_config=None):
     Create error handlers for all expected errors
     including 404 and 422.
     """
+
+    @app.errorhandler(500)
+    def not_found(error):
+        return jsonify({
+            "success": False,
+            "error": 500,
+            "message": "Internal server error"
+        }), 500
+
+    @app.errorhandler(400)
+    def not_found(error):
+        return jsonify({
+            "success": False,
+            "error": 400,
+            "message": "Bad request"
+        }), 400
 
     @app.errorhandler(404)
     def not_found(error):
