@@ -144,9 +144,12 @@ def create_app(test_config=None):
         if not question or not answer or category == 0 or difficulty == 0:
             abort(422)
 
-        new_question = Question(question, answer, category, difficulty)
+        try:
+            new_question = Question(question, answer, category, difficulty)
 
-        new_question.insert()
+            new_question.insert()
+        except:
+            abort(422)
 
         return jsonify({
             "success": True,
@@ -201,16 +204,17 @@ def create_app(test_config=None):
     @app.route('/categories/<int:category_id>/questions')
     @cross_origin()
     def get_questions_by_category(category_id):
+        category = Category.query.filter(Category.id == category_id).first()
+        current_category = ''
+        if category:
+            current_category = category.type
+        else:
+            abort(404)
 
         question_list = Question.query.filter(Question.category == category_id).all()
         total_count = Question.query.filter(Question.category == category_id).count()
 
-        category = Category.query.filter(Category.id == category_id).first()
-
         question_list = [ques.format() for ques in question_list]
-        current_category = ''
-        if category:
-            current_category = category.type
 
         return jsonify({
             'total_questions': total_count,
