@@ -3,6 +3,7 @@ from flask import Flask, request, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS, cross_origin
 import random
+from  sqlalchemy.sql.expression import func
 
 from models import setup_db, Question, Category
 
@@ -251,7 +252,7 @@ def create_app(test_config=None):
             if cate_id != 0:
                 filter_condition.append(Question.category == cate_id)
 
-        first_quest = Question.query.filter(*filter_condition).first()
+        first_quest = Question.query.filter(*filter_condition).order_by(func.random()).first()
 
         return jsonify({
             'question': first_quest.format() if first_quest is not None else None,

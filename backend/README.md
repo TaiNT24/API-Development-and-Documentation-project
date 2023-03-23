@@ -47,6 +47,17 @@ flask run --reload
 ```
 
 The `--reload` flag will detect file changes and restart the server automatically.
+### Secrets are stored as environment variables
+Environment can setting to connect DB:
+- DB_NAME: database name you connect to. Default: trivia
+- HOST: host that database running on. Default: localhost
+- PORT: port to connect database. Default: 5432
+
+---
+Environment can setting to connect DB test:
+- DB_NAME_TEST: database name you connect to. Default: trivia_test
+- HOST_TEST: host that database running on. Default: localhost
+- PORT_TEST: port to connect database. Default: 5432
 
 ## Documenting your Endpoints
 
